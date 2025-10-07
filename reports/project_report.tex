@@ -1,0 +1,92 @@
+\documentclass[12pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+\usepackage{fancyhdr}
+\usepackage[backend=biber,style=authoryear]{biblatex}
+
+\addbibresource{references.bib}
+
+\titleformat{\section}{\normalfont\Large\bfseries}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries}{\thesubsection}{0.5em}{}
+
+\setlist[itemize]{leftmargin=1.2em}
+\setlist[enumerate]{leftmargin=1.5em}
+
+\newcommand{\inlinecode}[1]{\texttt{#1}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{GROUP WORK PROJECT \#1}
+\fancyhead[C]{MScFE 600: Financial Data}
+\fancyhead[R]{Group Number: 11231}
+\fancyfoot[C]{\thepage}
+
+	itle{Task 2 -- Yield Curve Modeling (Germany)}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+	hispagestyle{fancy}
+	ableofcontents
+\bigskip
+
+\section{Data Acquisition}
+\begin{spacing}{1.15}
+This section documents how the German government zero-coupon curve was sourced and validated as the foundation for the Nelson--Siegel and cubic-spline modelling tasks.
+
+\subsection{Data Source and Coverage}
+\begin{itemize}
+    \item \textbf{Provider:} Deutsche Bundesbank SDMX REST API (\inlinecode{D.I.ZST.ZI.EUR.S1311.B.A604}; \citealp{bundesbank_zero_coupon}).
+    \item \textbf{Instrument set:} Zero-coupon yield curve for central government debt denominated in EUR.
+    \item \textbf{Tenor breadth:} Residual maturities from 0.5 years (\inlinecode{R005X}) through 30 years (\inlinecode{R30XX}), covering each annual bucket in between. This satisfies the assignment requirement to span short- through long-term maturities (see also \citealp{bundesbank_metadata}).
+\end{itemize}
+
+\subsection{Retrieval Workflow}
+\begin{enumerate}
+    \item Determine the candidate business date in the \inlinecode{Europe/Berlin} timezone. If the current calendar day is a weekend or German public holiday, walk back to the previous business day using the official holiday calendar (\inlinecode{holidays.Germany}).
+    \item For each maturity code in the published Bundesbank metadata, construct the full SDMX series key and request the corresponding CSV slice for the target date \citep{bundesbank_metadata}.
+    \item Parse the returned CSV, drop metadata rows, and coerce the values to floats. If any tenor is missing or marked ``No value available'', record the gap and continue checking.
+    \item Abort the fetch if any maturities are absent after iterating the full set. This guardrail prevents partially populated curves from contaminating downstream modelling.
+\end{enumerate}
+
+\subsection{Quality Controls and Audit Trail}
+\begin{itemize}
+    \item \textbf{Completeness checks:} The script raises an explicit error listing the missing maturities; the lookback window can be extended temporarily if necessary.
+    \item \textbf{Caching:} Each successful run writes a timestamped snapshot to \inlinecode{data/raw/}, embedding both the curve date and fetch timestamp to support reproduction and regulatory audit needs.
+    \item \textbf{Reproducibility:} The notebook cell fetches data deterministically---no random sampling or manual intervention---ensuring that the fitted models can be regenerated on demand.
+\end{itemize}
+
+\subsection{Why This Belongs in the Report}
+Documenting the acquisition process is standard on the buy side: it establishes provenance, demonstrates compliance with data-quality controls, and explains how the modelling inputs satisfy the assignment criteria. This section should precede the exploratory analysis and model-fitting discussion.
+\end{spacing}
+
+\section{Exploratory Analysis}
+\begin{spacing}{1.15}
+% TODO: Add plots, summary statistics, and observations once Step 2 is complete.
+\end{spacing}
+
+\section{Nelson--Siegel Model}
+\begin{spacing}{1.15}
+% TODO: Document calibration approach, parameter estimates, and interpretation.
+\end{spacing}
+
+\section{Cubic Spline Model}
+\begin{spacing}{1.15}
+% TODO: Describe the spline specification, fitting procedure, and diagnostics.
+\end{spacing}
+
+\section{Model Comparison and Ethics}
+\begin{spacing}{1.15}
+% TODO: Compare goodness of fit, interpretability, and address the smoothing ethics question.
+\end{spacing}
+
+\printbibliography
+
+\end{document}
