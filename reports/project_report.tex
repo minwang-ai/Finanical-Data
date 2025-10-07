@@ -1,88 +1,117 @@
 \documentclass[12pt]{article}
+
+% ---- Core packages ----
 \usepackage[margin=1in]{geometry}
 \usepackage{setspace}
-\usepackage{hyperref}
-\usepackage{enumitem}
 \usepackage{xcolor}
 \usepackage{titlesec}
-\usepackage{lmodern}
-\usepackage[T1]{fontenc}
+\usepackage{fontspec}      % XeLaTeX/LuaLaTeX
 \usepackage{fancyhdr}
-\usepackage[backend=biber,style=authoryear]{biblatex}
+\usepackage{enumitem}
+\usepackage[strings]{underscore} % make _ safe in text and in arguments like \cite{...}
+\usepackage{hyperref}             % load before biblatex
 
+% ---- Bibliography: biblatex (modern, no natbib) ----
+\usepackage[backend=biber,style=authoryear]{biblatex}
 \addbibresource{references.bib}
 
-\titleformat{\section}{\normalfont\Large\bfseries}{\thesection.}{0.5em}{}
-\titleformat{\subsection}{\normalfont\large\bfseries}{\thesubsection}{0.5em}{}
+% ---- Fonts (Overleaf has Roboto & Carlito) ----
+\defaultfontfeatures{Ligatures=TeX}
+\IfFontExistsTF{Roboto}{%
+  \setmainfont{Roboto}%
+}{%
+  \setmainfont{Latin Modern Roman}%
+}
+\IfFontExistsTF{Roboto}{%
+  \newfontfamily\robotosans{Roboto}[Scale=MatchLowercase]%
+}{%
+  \newfontfamily\robotosans{Latin Modern Sans}[Scale=MatchLowercase]%
+}
+\IfFontExistsTF{Carlito}{%
+  \newfontfamily\carlito{Carlito}[Scale=MatchLowercase]%
+}{%
+  \newfontfamily\carlito{Latin Modern Sans}[Scale=MatchLowercase]%
+}
+% convenient alias
+\newcommand{\roboto}{\robotosans}
 
+% ---- Colors & section titles ----
+\definecolor{projectblue}{HTML}{005F86}
+\titleformat{\section}{\normalfont\color{projectblue}\bfseries\fontsize{22}{30}\selectfont}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalfont\Large\bfseries}{\thesubsection}{0.5em}{}
+\titleformat{\subsubsection}{\normalfont\large\bfseries}{\thesubsubsection}{0.5em}{}
+
+% ---- Lists ----
 \setlist[itemize]{leftmargin=1.2em}
 \setlist[enumerate]{leftmargin=1.5em}
 
-\newcommand{\inlinecode}[1]{\texttt{#1}}
+% ---- Inline code: safe for _, %, \, etc. ----
+\newcommand{\inlinecode}[1]{\texttt{\detokenize{#1}}}
 
+% ---- Header / footer ----
+\setlength{\headheight}{32pt}
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{GROUP WORK PROJECT \#1}
-\fancyhead[C]{MScFE 600: Financial Data}
-\fancyhead[R]{Group Number: 11231}
+\fancyhead[L]{%
+    {\roboto\textbf{GROUP WORK PROJECT \# }1}\\
+    {\roboto\textbf{Group Number: }11231}%
+}
+\fancyhead[R]{%
+    {\carlito MScFE 600: FINANCIAL DATA}\\
+}
 \fancyfoot[C]{\thepage}
 
-	itle{Task 2 -- Yield Curve Modeling (Germany)}
-\author{}
-\date{}
-
 \begin{document}
-\maketitle
-	hispagestyle{fancy}
-	ableofcontents
+
+\setcounter{section}{1}
+\section{Yield Curve Modeling}
+
 \bigskip
 
-\section{Data Acquisition}
+\subsection{Data Acquisition}
 \begin{spacing}{1.15}
 This section documents how the German government zero-coupon curve was sourced and validated as the foundation for the Nelson--Siegel and cubic-spline modelling tasks.
 
-\subsection{Data Source and Coverage}
+\subsubsection{Data Source and Coverage}
 \begin{itemize}
-    \item \textbf{Provider:} Deutsche Bundesbank SDMX REST API (\inlinecode{D.I.ZST.ZI.EUR.S1311.B.A604}; \citealp{bundesbank_zero_coupon}).
+    \item \textbf{Provider:} Deutsche Bundesbank SDMX REST API \\(\inlinecode{D.I.ZST.ZI.EUR.S1311.B.A604}; \cite{bundesbank_zero_coupon}).
     \item \textbf{Instrument set:} Zero-coupon yield curve for central government debt denominated in EUR.
-    \item \textbf{Tenor breadth:} Residual maturities from 0.5 years (\inlinecode{R005X}) through 30 years (\inlinecode{R30XX}), covering each annual bucket in between. This satisfies the assignment requirement to span short- through long-term maturities (see also \citealp{bundesbank_metadata}).
+    \item \textbf{Tenor breadth:} Residual maturities from 0.5 years (\inlinecode{R005X}) through 30 years (\inlinecode{R30XX}), covering each annual bucket in between. This satisfies the assignment requirement to span short- through long-term maturities (see also \cite{bundesbank_metadata}).
 \end{itemize}
 
-\subsection{Retrieval Workflow}
+\subsubsection{Retrieval Workflow}
 \begin{enumerate}
     \item Determine the candidate business date in the \inlinecode{Europe/Berlin} timezone. If the current calendar day is a weekend or German public holiday, walk back to the previous business day using the official holiday calendar (\inlinecode{holidays.Germany}).
-    \item For each maturity code in the published Bundesbank metadata, construct the full SDMX series key and request the corresponding CSV slice for the target date \citep{bundesbank_metadata}.
+    \item For each maturity code in the published Bundesbank metadata, construct the full SDMX series key and request the corresponding CSV slice for the target date \parencite{bundesbank_metadata}.
     \item Parse the returned CSV, drop metadata rows, and coerce the values to floats. If any tenor is missing or marked ``No value available'', record the gap and continue checking.
     \item Abort the fetch if any maturities are absent after iterating the full set. This guardrail prevents partially populated curves from contaminating downstream modelling.
 \end{enumerate}
 
-\subsection{Quality Controls and Audit Trail}
+\subsubsection{Quality Controls and Audit Trail}
 \begin{itemize}
     \item \textbf{Completeness checks:} The script raises an explicit error listing the missing maturities; the lookback window can be extended temporarily if necessary.
     \item \textbf{Caching:} Each successful run writes a timestamped snapshot to \inlinecode{data/raw/}, embedding both the curve date and fetch timestamp to support reproduction and regulatory audit needs.
     \item \textbf{Reproducibility:} The notebook cell fetches data deterministically---no random sampling or manual intervention---ensuring that the fitted models can be regenerated on demand.
 \end{itemize}
 
-\subsection{Why This Belongs in the Report}
-Documenting the acquisition process is standard on the buy side: it establishes provenance, demonstrates compliance with data-quality controls, and explains how the modelling inputs satisfy the assignment criteria. This section should precede the exploratory analysis and model-fitting discussion.
 \end{spacing}
 
-\section{Exploratory Analysis}
+\subsection{Exploratory Analysis}
 \begin{spacing}{1.15}
 % TODO: Add plots, summary statistics, and observations once Step 2 is complete.
 \end{spacing}
 
-\section{Nelson--Siegel Model}
+\subsection{Nelson--Siegel Model}
 \begin{spacing}{1.15}
 % TODO: Document calibration approach, parameter estimates, and interpretation.
 \end{spacing}
 
-\section{Cubic Spline Model}
+\subsection{Cubic Spline Model}
 \begin{spacing}{1.15}
 % TODO: Describe the spline specification, fitting procedure, and diagnostics.
 \end{spacing}
 
-\section{Model Comparison and Ethics}
+\subsection{Model Comparison and Ethics}
 \begin{spacing}{1.15}
 % TODO: Compare goodness of fit, interpretability, and address the smoothing ethics question.
 \end{spacing}
