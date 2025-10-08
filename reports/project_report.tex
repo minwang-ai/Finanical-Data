@@ -70,19 +70,27 @@
 
 \subsection{Data Acquisition}
 \begin{spacing}{1.15}
-This section documents how the German government zero-coupon curve was sourced and validated as the foundation for the Nelson--Siegel and cubic-spline modelling tasks.
+This section documents how the German government zero-coupon curve was sourced and validated as the foundation for the Nelson--Siegel and Cubic-Spline modeling tasks.
 
 \subsubsection{Data Source and Coverage}
 \begin{itemize}
-    \item \textbf{Provider:} Deutsche Bundesbank SDMX REST API \\(\inlinecode{D.I.ZST.ZI.EUR.S1311.B.A604}; \cite{bundesbank_zero_coupon}).
+    \item \textbf{Provider:} Deutsche Bundesbank SDMX REST API \parencite{bundesbank_rest_api}\\(dataset \inlinecode{D.I.ZST.ZI.EUR.S1311.B.A604}  \parencite{bundesbank_zero_coupon}.
     \item \textbf{Instrument set:} Zero-coupon yield curve for central government debt denominated in EUR.
-    \item \textbf{Tenor breadth:} Residual maturities from 0.5 years (\inlinecode{R005X}) through 30 years (\inlinecode{R30XX}), covering each annual bucket in between. This satisfies the assignment requirement to span short- through long-term maturities (see also \cite{bundesbank_metadata}).
+    \item \textbf{Tenor breadth:} Residual maturities from 0.5 years (\inlinecode{R005X}) through 30 years (\inlinecode{R30XX}), covering each annual bucket in between. This satisfies the assignment requirement to span short- through long-term maturities (see the \emph{Description} section of \cite{bundesbank_zero_coupon}).
+\end{itemize}
+
+\subsubsection{Why the Bundesbank Term-Structure Series Dataset}
+\begin{itemize}
+  \item \textbf{Alignment with assignment scope:} The coursework requires a government-securities yield curve. Within the Bundesbank dataset catalog \parencite{bundesbank_data_yields}, the ``Term structure of interest rates in the debt securities market---estimated values'' \cite{bundesbank_zero_coupon} is the only branch that delivers a full maturity ladder for \emph{federal - government} securities.
+  \item \textbf{Daily frequency and audit trail:} The ``Listed Federal securities'' subcategory exposes daily values for each maturity, letting us capture the most recent business day and preserve a reproducible cache.
+  \item \textbf{Ready-to-use zero-coupon points:} The published Nelson--Siegel--Svensson estimates provide desmoothed spot rates at residual maturities from 0.5 to 30 years. Using these points avoids manual bond stripping while giving a clean target for the Nelson--Siegel and Cubic-Spline models that we must implement.
+  \item \textbf{Alternative categories ruled out:} Money-market and deposit-rate tables do not cover government bonds; per-ISIN price tables require custom stripping; The Pfandbriefe pertain to covered bonds, not sovereign issuance. The \emph{Description} section in \cite{bundesbank_zero_coupon} confirms that the SDMX key \inlinecode{D.I.ZST.ZI.EUR.S1311.B.A604} targets the desired government curve.
 \end{itemize}
 
 \subsubsection{Retrieval Workflow}
 \begin{enumerate}
     \item Determine the candidate business date in the \inlinecode{Europe/Berlin} timezone. If the current calendar day is a weekend or German public holiday, walk back to the previous business day using the official holiday calendar (\inlinecode{holidays.Germany}).
-    \item For each maturity code in the published Bundesbank metadata, construct the full SDMX series key and request the corresponding CSV slice for the target date \parencite{bundesbank_metadata}.
+    \item For each maturity code in the published Bundesbank metadata, construct the full key of the SDMX series for each residual maturity and request the corresponding CSV slice for the target date, instead of fetching the whole dataset \parencite{bundesbank_zero_coupon_download}.
     \item Parse the returned CSV, drop metadata rows, and coerce the values to floats. If any tenor is missing or marked ``No value available'', record the gap and continue checking.
     \item Abort the fetch if any maturities are absent after iterating the full set. This guardrail prevents partially populated curves from contaminating downstream modelling.
 \end{enumerate}
@@ -90,8 +98,8 @@ This section documents how the German government zero-coupon curve was sourced a
 \subsubsection{Quality Controls and Audit Trail}
 \begin{itemize}
     \item \textbf{Completeness checks:} The script raises an explicit error listing the missing maturities; the lookback window can be extended temporarily if necessary.
-    \item \textbf{Caching:} Each successful run writes a timestamped snapshot to \inlinecode{data/raw/}, embedding both the curve date and fetch timestamp to support reproduction and regulatory audit needs.
-    \item \textbf{Reproducibility:} The notebook cell fetches data deterministically---no random sampling or manual intervention---ensuring that the fitted models can be regenerated on demand.
+    \item \textbf{Caching:} Each successful run writes a timestamped snapshot to \inlinecode{data/raw/}, embedding both the curve date and the fetch timestamp to support reproduction and regulatory audit needs.
+    \item \textbf{Reproducibility:} The notebook cell fetches data deterministically and without random sampling or manual intervention, ensuring that the fitted models can be regenerated on demand.
 \end{itemize}
 
 \end{spacing}
