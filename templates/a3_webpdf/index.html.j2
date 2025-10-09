@@ -1,0 +1,26 @@
+{% extends 'webpdf/index.html.j2' %}
+
+{% block header %}
+  {{ super() }}
+  <style>
+    @page {
+      size: A3 portrait;
+      margin: 1.2cm;
+    }
+
+    body {
+      margin: 0 auto;
+      max-width: none;
+    }
+
+    .jp-Notebook {
+      max-width: none;
+    }
+
+    pre, code {
+      font-size: 0.9em;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+  </style>
+{% endblock header %}
