@@ -42,12 +42,17 @@
 % ---- Colors & section titles ----
 \definecolor{projectblue}{HTML}{005F86}
 \titleformat{\section}{\normalfont\color{projectblue}\bfseries\fontsize{22}{30}\selectfont}{\thesection.}{0.5em}{}
-\titleformat{\subsection}{\normalfont\Large\bfseries}{\thesubsection}{0.5em}{}
-\titleformat{\subsubsection}{\normalfont\large\bfseries}{\thesubsubsection}{0.5em}{}
+\titleformat{\subsection}{\normalfont\color{projectblue}\bfseries\fontsize{16}{22}\selectfont}{\thesubsection}{0.5em}{}
+\titleformat{\subsubsection}{\normalfont\color{projectblue}\bfseries\fontsize{12}{16}\selectfont}{\thesubsubsection}{0.5em}{}
 
 % ---- Lists ----
 \setlist[itemize]{leftmargin=1.2em}
 \setlist[enumerate]{leftmargin=1.5em}
+
+% ---- Bibliography heading ----
+\defbibheading{references}{%
+  {\normalfont\color{projectblue}\bfseries\fontsize{16}{22}\selectfont #1\par}
+}
 
 % ---- Inline code: safe for _, %, \, etc. ----
 \newcommand{\inlinecode}[1]{\texttt{\detokenize{#1}}}
@@ -159,7 +164,9 @@ introducing parameters $(\beta_3, \tau_2)$ that target long-term dynamics. Figur
 \FloatBarrier
 \subsection{Cubic Spline Model}
 \begin{spacing}{1.15}
-As a flexible benchmark, we fit a smoothing spline \parencite{cubic_spline_1989} through the same maturity-yield pairs. The spline captures local curvature without imposing an explicit factor structure, making it suitable for interpolation when parametric assumptions are suspect. Figure~\ref{fig:spline-fit} demonstrates the excellent in-sample alignment, although the method lacks interpretable parameters.
+To benchmark a non-parametric alternative, we fit a cubic smoothing spline \parencite{cubic_spline_1989} using \inlinecode{scipy.interpolate.UnivariateSpline}. The algorithm represents the curve as a linear combination of cubic spline basis functions and determines their coefficients by minimising a weighted sum of squared errors plus a roughness penalty. We set the smoothing factor to $s = 5\times 10^{-4}$, which lets the spline nearly interpolate the 0.5--30 year observations while damping tiny wiggles that would overfit daily noise. The resulting curve is twice continuously differentiable, so forward rates implied by the first derivative remain well behaved, and the residuals stay within a few basis points across the grid.
+
+Because the spline adapts locally, no low-dimensional parameter vector summarises its behaviour---Table~\ref{tab:param-summary} therefore lists ``--'' for the coefficient slots. Instead, interpretability hinges on diagnostics: we monitor the effective degrees of freedom (given by the number of active knots), plot the fitted curve against the raw data (Figure~\ref{fig:spline-fit}), and inspect residuals alongside the parametric models in Figure~\ref{fig:residuals}. This makes the spline a useful reference for shape, even though it cannot provide the economic narratives that Nelson--Siegel loadings offer.
 \end{spacing}
 
 \begin{figure}[htbp]
@@ -171,13 +178,13 @@ As a flexible benchmark, we fit a smoothing spline \parencite{cubic_spline_1989}
 
 \FloatBarrier
 \subsection{Model Comparison and Ethics}
-\begin{spacing}{1.15}
-Table~\ref{tab:model-metrics} contrasts root-mean-square and mean-absolute residuals across all maturities. The NSS specification delivers the lowest errors, followed closely by the spline, while the base NS model under-fits the curve. Residual diagnostics in Figure~\ref{fig:residuals} confirm that NSS and the spline leave only basis-point level noise, whereas NS exhibits systematic deviations at both the short and long ends.
 
-Crucially, NSS retains the interpretability of factor loadings. Table~\ref{tab:param-summary} shows that adding $(\beta_3, \tau_2)$ reallocates curvature to the long end without abandoning the economic meaning of level, slope, and medium-term hump factors. The spline, by contrast, offers no parameter-level narrative despite its competitive fit.
-
-In light of Module~2 Lesson~4 discussions, smoothing via Nelson--Siegel-type models is not inherently unethical provided the methodology and residual diagnostics are disclosed. Our workflow publishes parameter estimates, error metrics, and residual plots alongside the raw Bundesbank points, ensuring stakeholders can gauge any discrepancies rather than relying on a black-box smoother.
-\end{spacing}
+\begin{table}[htbp]
+  \centering
+  \caption{Fit diagnostics (percentage-point units).}
+  \label{tab:model-metrics}
+  \input{../data/output/table_model_metrics.tex}
+\end{table}
 
 \begin{table}[htbp]
   \centering
@@ -186,12 +193,17 @@ In light of Module~2 Lesson~4 discussions, smoothing via Nelson--Siegel-type mod
   \input{../data/output/table_parameter_summary.tex}
 \end{table}
 
-\begin{table}[htbp]
-  \centering
-  \caption{Fit diagnostics (percentage-point units).}
-  \label{tab:model-metrics}
-  \input{../data/output/table_model_metrics.tex}
-\end{table}
+
+
+\begin{spacing}{1.15}
+\begin{itemize}[leftmargin=1.3em]
+  \item \textbf{Fit.} Table~\ref{tab:model-metrics} shows that Nelson--Siegel--Svensson (NSS) achieves the tightest fit with an RMSE of $0.0027$ and MAE of $0.0021$, an order of magnitude smaller than the base Nelson--Siegel (NS) errors of $0.0253$ and $0.0222$. The cubic spline sits between them on accuracy (RMSE $0.0040$), closely shadowing the data yet allowing minor oscillations at very short maturities. Figure~\ref{fig:residuals} corroborates these diagnostics: NS leaves systematic underpricing at the short end and overshooting beyond 20 years, whereas NSS residuals collapse to basis-point noise across tenors and the spline residuals remain largely unbiased aside from a slight kink near the five-year node.
+  \item \textbf{Interpretation.} The NS parameter set in Table~\ref{tab:param-summary} is economically intuitive but constrained. Its level factor $\beta_0=3.68\%$ anchors the long end, the slope $\beta_1=-1.63\%$ captures the downward short-to-long tilt, and the curvature $\beta_2=-2.55\%$ with decay $\tau_1=2.27$ years places the single hump around two to three years. NSS inherits that structure and adds a second pair $(\beta_3,\tau_2)=(3.44\%,8.34\text{ years})$ that bends the far end without disturbing the medium-term story, matching the observed long-end flattening. Because the spline has no finite-dimensional parameter vector (all entries are ``--'' in Table~\ref{tab:param-summary}), it offers little leverage for communicating level, slope, or curvature dynamics to stakeholders despite its solid fit.
+  \item \textbf{Ethics of smoothing.} Module~2 Lesson~4 warns that concealment or distortion during smoothing can be unethical. Nelson--Siegel-type models smooth the curve, but here the process remains transparent: we report $(\beta_i,\tau_j)$ estimates, publish residual diagnostics, and retain the original Bundesbank observations. The smoothing therefore clarifies signal without hiding discrepancies, so the approach stays within ethical bounds provided the assumptions and limitations are disclosed.
+\end{itemize}
+\end{spacing}
+
+
 
 \begin{figure}[htbp]
   \centering
