@@ -4,12 +4,14 @@
 \usepackage[margin=1in]{geometry}
 \usepackage{setspace}
 \usepackage{xcolor}
+\usepackage{graphicx}
 \usepackage{titlesec}
 \usepackage{fontspec}      % XeLaTeX/LuaLaTeX
 \usepackage{fancyhdr}
 \usepackage{enumitem}
 \usepackage[strings]{underscore} % make _ safe in text and in arguments like \cite{...}
 \usepackage{hyperref}             % load before biblatex
+\usepackage{booktabs}
 
 % ---- Bibliography: biblatex (modern, no natbib) ----
 \usepackage[backend=biber,style=authoryear]{biblatex}
@@ -106,23 +108,98 @@ This section documents how the German government zero-coupon curve was sourced a
 
 \subsection{Exploratory Analysis}
 \begin{spacing}{1.15}
-% TODO: Add plots, summary statistics, and observations once Step 2 is complete.
+Figure~\ref{fig:raw-curve} shows the Bundesbank zero-coupon curve for 9 October 2025, exhibiting a gently upward-sloping structure that flattens beyond the 20-year point. Short-term yields remain below 2\%, while the long end stabilises around 3.3\%. Table~\ref{tab:summary-stats} summarises the cross-sectional statistics, confirming broad maturity coverage and moderate dispersion of yields. These diagnostics provide a clean baseline for parametric and non-parametric fits.
 \end{spacing}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.8\textwidth]{../data/output/figure_raw_curve.png}
+  \caption{Bundesbank zero-coupon yields by residual maturity on 9~October~2025. Source: \parencite{bundesbank_zero_coupon}.}
+  \label{fig:raw-curve}
+\end{figure}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Summary statistics for maturities and yields (9~October~2025).}
+  \label{tab:summary-stats}
+  \input{../data/output/table_summary_stats.tex}
+\end{table}
 
 \subsection{Nelson--Siegel Model}
 \begin{spacing}{1.15}
-% TODO: Document calibration approach, parameter estimates, and interpretation.
+We calibrate the four-parameter Nelson--Siegel (NS) specification \parencite{nelson_siegel_1987}, in which the spot rate at maturity $\tau$ is
+\begin{equation}
+  y_{\text{NS}}(\tau) = \beta_0 + \beta_1 \frac{1 - e^{-\tau/\tau_1}}{\tau/\tau_1} + \beta_2 \left( \frac{1 - e^{-\tau/\tau_1}}{\tau/\tau_1} - e^{-\tau/\tau_1} \right).
+\end{equation}
+The factors $(\beta_0, \beta_1, \beta_2)$ capture the level, slope, and medium-term curvature respectively, while $\tau_1$ controls the decay of the exponential loading. Parameters are estimated with non-linear least squares against the 0.5--30 year cross-section. The fitted curve (Figure~\ref{fig:ns-fit}) follows the broad shape of the data but leaves residual structure at both extremes, signalling the need for additional flexibility.
+
+Table~\ref{tab:param-summary} reports the calibrated coefficients. The level factor $\beta_0$ settles near 3.68\%, consistent with long-dated yields, whereas the negative slope factor reflects the downward tilt between the short and long ends observed in the data.
 \end{spacing}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.8\textwidth]{../data/output/figure_ns_fit.png}
+  \caption{Nelson--Siegel fit versus observed yields.}
+  \label{fig:ns-fit}
+\end{figure}
+
+\subsection{Nelson--Siegel--Svensson Extension}
+\begin{spacing}{1.15}
+To capture long-end curvature we extend the model with the Nelson--Siegel--Svensson (NSS) term \parencite{diebold_li_2006, ecb_yield_curve_2018}. The NSS curve augments the NS structure with an additional exponential hump:
+\begin{equation}
+  y_{\text{NSS}}(\tau) = y_{\text{NS}}(\tau) + \beta_3 \left( \frac{1 - e^{-\tau/\tau_2}}{\tau/\tau_2} - e^{-\tau/\tau_2} \right),
+\end{equation}
+introducing parameters $(\beta_3, \tau_2)$ that target long-term dynamics. Figure~\ref{fig:nss-fit} illustrates the near-perfect alignment between NSS estimates and observed yields; the additional curvature term corrects the slight under- and over-shoots left by the NS curve. Parameter values in Table~\ref{tab:param-summary} show how $\beta_3$ adds a second hump around eight years, while $\tau_1$ shifts upward to focus the original curvature on the mid-belly.
+\end{spacing}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.8\textwidth]{../data/output/figure_nss_fit.png}
+  \caption{Nelson--Siegel--Svensson fit versus observed yields.}
+  \label{fig:nss-fit}
+\end{figure}
 
 \subsection{Cubic Spline Model}
 \begin{spacing}{1.15}
-% TODO: Describe the spline specification, fitting procedure, and diagnostics.
+As a flexible benchmark we fit a smoothing spline through the same maturity-yield pairs. The spline captures local curvature without imposing an explicit factor structure, making it suitable for interpolation when parametric assumptions are suspect. Figure~\ref{fig:spline-fit} demonstrates the excellent in-sample alignment, although the method lacks interpretable parameters.
 \end{spacing}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.8\textwidth]{../data/output/figure_spline_fit.png}
+  \caption{Cubic spline fit versus observed yields.}
+  \label{fig:spline-fit}
+\end{figure}
 
 \subsection{Model Comparison and Ethics}
 \begin{spacing}{1.15}
-% TODO: Compare goodness of fit, interpretability, and address the smoothing ethics question.
+Table~\ref{tab:model-metrics} contrasts root-mean-square and mean-absolute residuals across all maturities. The NSS specification delivers the lowest errors, followed closely by the spline, while the base NS model under-fits the curve. Residual diagnostics in Figure~\ref{fig:residuals} confirm that NSS and the spline leave only basis-point level noise, whereas NS exhibits systematic deviations at both the short and long ends.
+
+Crucially, NSS retains the interpretability of factor loadings. Table~\ref{tab:param-summary} shows that adding $(\beta_3, \tau_2)$ reallocates curvature to the long end without abandoning the economic meaning of level, slope, and medium-term hump factors. The spline, by contrast, offers no parameter-level narrative despite its competitive fit.
+
+In light of Module~2 Lesson~4 discussions, smoothing via Nelson--Siegel-type models is not inherently unethical provided the methodology and residual diagnostics are disclosed. Our workflow publishes parameter estimates, error metrics, and residual plots alongside the raw Bundesbank points, ensuring stakeholders can gauge any discrepancies rather than relying on a black-box smoother.
 \end{spacing}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Parameter estimates for the fitted term-structure models.}
+  \label{tab:param-summary}
+  \input{../data/output/table_parameter_summary.tex}
+\end{table}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Fit diagnostics (percentage-point units).}
+  \label{tab:model-metrics}
+  \input{../data/output/table_model_metrics.tex}
+\end{table}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.8\textwidth]{../data/output/figure_model_residuals.png}
+  \caption{Residuals by maturity for NS, NSS, and spline fits.}
+  \label{fig:residuals}
+\end{figure}
 
 \printbibliography
 
