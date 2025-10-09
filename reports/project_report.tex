@@ -9,6 +9,8 @@
 \usepackage{fontspec}      % XeLaTeX/LuaLaTeX
 \usepackage{fancyhdr}
 \usepackage{enumitem}
+\usepackage{amsmath}
+\usepackage[section]{placeins} 
 \usepackage[strings]{underscore} % make _ safe in text and in arguments like \cite{...}
 \usepackage{hyperref}             % load before biblatex
 \usepackage{booktabs}
@@ -108,7 +110,7 @@ This section documents how the German government zero-coupon curve was sourced a
 
 \subsection{Exploratory Analysis}
 \begin{spacing}{1.15}
-Figure~\ref{fig:raw-curve} shows the Bundesbank zero-coupon curve for 9 October 2025, exhibiting a gently upward-sloping structure that flattens beyond the 20-year point. Short-term yields remain below 2\%, while the long end stabilises around 3.3\%. Table~\ref{tab:summary-stats} summarises the cross-sectional statistics, confirming broad maturity coverage and moderate dispersion of yields. These diagnostics provide a clean baseline for parametric and non-parametric fits.
+Figure~\ref{fig:raw-curve} shows the Bundesbank zero-coupon curve for 9 October 2025, exhibiting a gently upward-sloping structure that flattens beyond the 20-year point. Short-term yields remain below 2\%, while the long end stabilises around 3.3\%. It provides a clean baseline for parametric and non-parametric fits.
 \end{spacing}
 
 \begin{figure}[htbp]
@@ -118,12 +120,6 @@ Figure~\ref{fig:raw-curve} shows the Bundesbank zero-coupon curve for 9 October 
   \label{fig:raw-curve}
 \end{figure}
 
-\begin{table}[htbp]
-  \centering
-  \caption{Summary statistics for maturities and yields (9~October~2025).}
-  \label{tab:summary-stats}
-  \input{../data/output/table_summary_stats.tex}
-\end{table}
 
 \subsection{Nelson--Siegel Model}
 \begin{spacing}{1.15}
@@ -143,6 +139,7 @@ Table~\ref{tab:param-summary} reports the calibrated coefficients. The level fac
   \label{fig:ns-fit}
 \end{figure}
 
+\FloatBarrier
 \subsection{Nelson--Siegel--Svensson Extension}
 \begin{spacing}{1.15}
 To capture long-end curvature we extend the model with the Nelson--Siegel--Svensson (NSS) term \parencite{diebold_li_2006, ecb_yield_curve_2018}. The NSS curve augments the NS structure with an additional exponential hump:
@@ -159,9 +156,10 @@ introducing parameters $(\beta_3, \tau_2)$ that target long-term dynamics. Figur
   \label{fig:nss-fit}
 \end{figure}
 
+\FloatBarrier
 \subsection{Cubic Spline Model}
 \begin{spacing}{1.15}
-As a flexible benchmark we fit a smoothing spline through the same maturity-yield pairs. The spline captures local curvature without imposing an explicit factor structure, making it suitable for interpolation when parametric assumptions are suspect. Figure~\ref{fig:spline-fit} demonstrates the excellent in-sample alignment, although the method lacks interpretable parameters.
+As a flexible benchmark, we fit a smoothing spline \parencite{cubic_spline_1989} through the same maturity-yield pairs. The spline captures local curvature without imposing an explicit factor structure, making it suitable for interpolation when parametric assumptions are suspect. Figure~\ref{fig:spline-fit} demonstrates the excellent in-sample alignment, although the method lacks interpretable parameters.
 \end{spacing}
 
 \begin{figure}[htbp]
@@ -171,6 +169,7 @@ As a flexible benchmark we fit a smoothing spline through the same maturity-yiel
   \label{fig:spline-fit}
 \end{figure}
 
+\FloatBarrier
 \subsection{Model Comparison and Ethics}
 \begin{spacing}{1.15}
 Table~\ref{tab:model-metrics} contrasts root-mean-square and mean-absolute residuals across all maturities. The NSS specification delivers the lowest errors, followed closely by the spline, while the base NS model under-fits the curve. Residual diagnostics in Figure~\ref{fig:residuals} confirm that NSS and the spline leave only basis-point level noise, whereas NS exhibits systematic deviations at both the short and long ends.
